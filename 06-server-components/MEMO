@@ -1,0 +1,8 @@
+今回動かそうとしている 
+06-server-components はサーバーサイド（Erlang/Mistサーバー）で動くリアルタイムコンポーネントのため、
+仕組みが根本的に異なり、lustre/dev 経由では起動できません。
+
+gleam run -m lustre/dev start が使えない理由は、
+lustre/dev（Lustre開発サーバー）が「ブラウザ側（クライアントサイド）で動くSPAアプリ」を動かすための専用ツールだからです。
+
+
