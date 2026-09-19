@@ -1,7 +1,56 @@
 
- find . -type d -name build 
- find . -type d -name build -exec rm -rf {} \;
+Lustreは、型安全なプログラミング言語Gleam向けのフロントエンドWebフレームワークであり、クライアントサイドのシングルページアプリケーション（SPA）やサーバーコンポーネントの構築をサポートしています。
 
 
 
+Lustreのサーバーコンポーネントは、バックエンド側でHTMLの差分（パッチ）を計算し、
+Websocket経由でブラウザ側に送信してDOMを更新する仕組みをとっています。
+
+GleamのLustreフレームワークにおいて、クライアントサイドSPA（JavaScript駆動）とサーバーコンポーネント（Erlang/WebSocket駆動）を混在させるには、「モノレポ構造」と「カスタムエレメント（Web Components）」の仕組みを利用します。
+
+
+1. プロジェクト構造（モノレポ）の設計Gleamはターゲット（JavaScript / Erlang）を跨いだ単一アプリのコンパイルをサポートしていないため、Lustreフルスタックガイドに倣い、プロジェクトを3つに分割します。textmy_project/
+├── shared/  # 共通データ構造や型（Erlang/JS両対応）
+├── client/  # クライアントサイドSPA（Target: JavaScript）
+└── server/  # バックエンド 兼 サーバーコンポーネント（Target: Erlang）
+
+
+2. 基本的な混在アプローチ（カスタムエレメント化）Lustreにおける最大の強みは、「すべてのLustreアプリケーションはWeb Components（カスタムエレメント）としてブラウザに登録できる」という点です。これを利用して、ベースをSPAにしつつ一部をサーバーコンポーネントにする（、またはその逆の）構造を作ります。
+
+##############################################################################################
+パターンA：
+
+SPA（メイン）の中に、サーバーコンポーネントを埋め込む動的なUIやルーターは通常のクライアントサイドSPAとして構築し、重いデータ処理やリアルタイム性が必要なパーツ（チャット、ダッシュボード等）だけをサーバーコンポーネントにする手法です。
+
+1. サーバー側の実装 
+(server/)lustre/server_componentモジュールを使用し、Erlangアクターとして動くコンポーネントを定義します。gleam// server側でWebSocket経由でパッチを送るコンポーネントをセットアップ
+import lustre/server_component
+
+2. クライアントSPA側の実装 
+(client/)Lustreが提供する軽量なクライアントスクリプト（約10kb）を読み込ませると、ブラウザ側に <lustre-server-component> という独自タグが使えるようになります。SPAの view 関数内で、通常のHTML要素と同じようにこのタグを配置します。gleamimport lustre/element.{html}
+import lustre/element/html
+
+pub fn view(model: Model) {
+  html.div([], [
+    html.h1([], [element.text("マイSPAアプリ")]),
+    // サーバーコンポーネントをカスタムエレメントとして呼び出す
+    element.element("lustre-server-component", [
+      attribute.src("/ws/my-server-component")
+    ], [])
+  ])
+}
+
+
+##############################################################################################
+パターンB：
+
+サーバーサイド（メイン）の中に、インタラクティブなSPAを埋め込む初期表示の高速化（SSR）やSEOのためにサーバー主導で構築し、一部の複雑なUI（リッチなエディタやインタラクティブなグラフ等）をクライアントサイドのLustre（SPA/アイランド）として動かす手法です。
+
+1. サーバー側で初期HTMLを出力
+lustre/element.to_document_string を使い、サーバー側でベースとなるHTMLをレンダリングしてブラウザへ返します。
+
+クライアント側でハイドレーション（Hydration）ブラウザに読み込まれた client.js が、静的なHTMLに対して lustre.hydrate() を実行し、動的なSPAとして動作を引き継ぎます。
+
+2. クライアント側でハイドレーション（Hydration）
+ブラウザに読み込まれた client.js が、静的なHTMLに対して lustre.hydrate() を実行し、動的なSPAとして動作を引き継ぎます。
 

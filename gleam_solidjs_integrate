@@ -1,0 +1,12 @@
+Gleam（Lustre）と SolidJS を連携
+
+Gleam（Lustre）と SolidJS を連携（インテグレーション）させる最も確実でクリーンな方法は、SolidJS側を Web Components（Custom Elements）としてビルドし、Lustre側からカスタムHTMLタグとして呼び出す 方法です。Lustre（Elmアーキテクチャ）とSolidJS（細粒度なリアクティブ・仮想DOMなし）はアーキテクチャの根本が異なるため、直接内部コードを混ぜるのではなく、DOMの標準規格をインターフェースにするのがベストプラクティスとなります。
+
+
+連携の基本戦略SolidJS側：
+  UIコンポーネントを実装し、solid-element を使ってWeb Componentとして定義・出力する。
+Gleam / Lustre側：
+ JavaScriptの FFI（Foreign Function Interface）でSolidJSのスクリプトを読み込み、
+ Lustreの view 関数内で <my-solid-component> のように通常のHTMLタグとして配置する。
+
+

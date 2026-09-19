@@ -1,0 +1,64 @@
+
+https://github.com/andrew-pavlov-ua/killmestats
+
+cp .env_test .env
+
+sudo systemctl start docker
+
+###########################################
+#DEV
+
+$ source .env
+
+## DB
+$ docker compose -f dev-db-compose.yaml  up
+
+$ psql -h localhost -p 5432 -U postgres -d postgres -c "\d"
+Password for user postgres: 
+                 List of relations
+ Schema |        Name        |   Type   |  Owner   
+--------+--------------------+----------+----------
+ public | _migrations        | table    | postgres
+ public | _migrations_id_seq | sequence | postgres
+ public | stats_samples      | table    | postgres
+ public | users              | table    | postgres
+ public | users_id_seq       | sequence | postgres
+(5 rows)
+
+---------------------------------------
+## SERVER
+
+-- docker server start
+$ docker compose -f dev-sv-compose.yaml  up
+
+-- not docker server start
+$ cd server
+$ source ../.env
+$ echo $POSTGRES_USER
+postgres
+
+$ gleam run
+
+---------------------------------------
+## CLIENT
+
+$ cd client
+$ gleam run -m lustre/dev start
+
+http://127.0.0.1:1234/
+
+###########################################
+#PRODUCTION
+
+$ source .env
+
+$ docker compose up
+
+$ cd client
+$ gleam run -m lustre/dev start
+
+http://127.0.0.1:1234/
+
+
+
+
