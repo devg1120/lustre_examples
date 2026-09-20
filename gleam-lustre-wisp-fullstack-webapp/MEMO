@@ -1,0 +1,6 @@
+
+https://github.com/emarifer/gleam-lustre-wisp-fullstack-webapp
+
+make prepare-deploy
+docker container run test:latest
+make run-dev
