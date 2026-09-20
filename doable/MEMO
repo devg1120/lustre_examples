@@ -1,0 +1,32 @@
+
+https://github.com/lukwol/doable
+
+
+sudo lsof -i:5432
+
+cp .env_test .env
+
+source .env
+
+docker compose up
+
+....
+
+Container doable-dev-db-1 Healthy 
+Container doable-dev-db-1 Healthy 
+migrate-test-1  | 1/u create_tasks (122.65553ms)
+Container doable-dev-migrate-1 Waiting 
+migrate-1       | 1/u create_tasks (2.523900938s)
+migrate-test-1 exited with code 0
+Container doable-dev-migrate-1 Exited 
+migrate-1 exited with code 0
+server-1        | Listening on http://0.0.0.0:8000
+
+
+cd client
+
+yarn
+
+gleam run -m lustre/dev start
+
+
