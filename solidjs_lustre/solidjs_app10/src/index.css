@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+
+/* ⭕ Gleamのコンパイル済みJavaScriptに含まれるクラス名（attribute.class）をスキャン対象にする */
+@source "../build/dev/javascript";
+/* ⭕ SolidJS側のTypeScriptファイルもスキャン対象にする */
+@source "../ts/**/*.tsx";
+

@@ -139,5 +139,22 @@ solidjs_app6
     dashboard
     solid-apexcharts
 
+solidjs_app7
+    header fix
+    sidebar open/close
+
+
+solidjs_app8
+   ダーク・ライトモード同期
+
+solidjs_app9
+   h split view
+
+solidjs_app10
+   board
+   graph
+   h split view
+   v split view
+
 
 

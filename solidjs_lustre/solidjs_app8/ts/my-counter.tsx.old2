@@ -1,0 +1,89 @@
+import { render } from 'solid-js/web';
+import { createSignal, createEffect, onCleanup } from 'solid-js';
+
+// 通常の SolidJS コンポーネント
+function SolidCounter(props: { count: () => number }) {
+  const increment = () => {
+    const nextValue = props.count() + 1;
+    
+    // カスタムイベントを作成し、データを乗せて外部（Lustre）に通知
+    const event = new CustomEvent('count-change', {
+      detail: { value: nextValue },
+      bubbles: true,
+      composed: true, // Shadow DOMの境界を越えるために必須
+    });
+    
+    window.dispatchEvent(event);
+  };
+
+  return (
+    <div style={{
+      border: '2px dashed #4483c1',
+      padding: '15px',
+      'border-radius': '8px',
+      'background-color': '#f0f7ff',
+      'margin-top': '10px'
+    }}>
+      <h3 style={{ margin: '0 0 10px 0', color: '#4483c1' }}>SolidJS コンポーネント</h3>
+      <p>Lustre から同期された値: <strong>{props.count()}</strong></p>
+      <button 
+        style={{ padding: '6px 12px', cursor: 'pointer' }} 
+        onClick={increment}
+      >
+        Solid側でインクリメント
+      </button>
+    </div>
+  );
+}
+
+// 自前で Web Component を定義するクラス
+class SolidCounterElement extends HTMLElement {
+  // Lustre が書き換える「count」属性の変更を監視対象にする
+  static get observedAttributes() {
+    return ['count'];
+  }
+
+  private dispose?: () => void;
+  private setCountSignal?: (v: number) => void;
+
+  constructor() {
+    super();
+  }
+
+  // 要素がDOMに追加された時に実行される処理 (Solidのレンダリング)
+  connectedCallback() {
+    // 1. Lustre から現在渡されている初期値を取得
+    const initialCount = Number(this.getAttribute('count') || 0);
+    
+    // 2. Solid のリアクティブな Signal を作成
+    const [count, setCount] = createSignal(initialCount);
+    this.setCountSignal = setCount;
+
+    // 3. Shadow DOM ではなく、通常の DOM（またはShadow）に Solid をマウント
+    // Lustre の親要素からイベントを拾いやすくするため、ここでは要素直下に直接マウントします
+    this.dispose = render(
+      () => <SolidCounter count={count} />,
+      this
+    );
+  }
+
+  // Lustre 側で属性（count）が書き換わった時に自動で呼び出される処理
+  attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null) {
+    if (name === 'count' && this.setCountSignal && newValue !== null) {
+      // SolidJS の Signal を更新することで、コンポーネントが超高速に再描画される
+      this.setCountSignal(Number(newValue));
+    }
+  }
+
+  // 要素がDOMから削除されたら、Solidのメモリやエフェクトを解放
+  disconnectedCallback() {
+    if (this.dispose) this.dispose();
+  }
+}
+
+// <solid-counter> としてブラウザに登録
+if (!customElements.get('solid-counter')) {
+  customElements.define('solid-counter', SolidCounterElement);
+}
+
+
