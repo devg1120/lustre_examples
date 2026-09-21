@@ -1,0 +1,143 @@
+Gleamの Lustre アプリケーション内に SolidJS のコンポーネントを埋め込む
+最も標準的でクリーンな方法は、
+SolidJSコンポーネントを Web Components（Custom Elements）化してLustre側から呼び出す方法です。
+
+Lustreは仮想DOMのレンダリングにおいてカスタム要素（Web Components）をネイティブにサポートしているため、
+この方法を使えばLustreのアーキテクチャ（MVUパターン）を崩さずに綺麗に統合できます。
+
+実装手順
+
+1. SolidJS 側のコンポーネントを Web Component 化する
+
+SolidJS公式の ソリッド・エレメント（custom-elements） を使用して、
+SolidJSコンポーネントをカスタム要素として登録します。
+
+typescript// src/components/MySolidCounter.tsx
+import { customElement } from 'solid-element';
+import { createSignal } from 'solid-js';
+
+//  通常のSolidJSコンポーネントを定義
+function SolidCounter(props: { initial?: string }) {
+  const [count, setCount] = createSignal(Number(props.initial || 0));
+
+  return (
+    <div style={{ border: '1px solid #666', padding: '10px' }}>
+      <p>SolidJS Signal Count: {count()}</p>
+      <button onClick={() => setCount(count() + 1)}>Increment</button>
+    </div>
+  );
+}
+
+//  Web Component として登録 (第一引数はタグ名、第二引数はデフォルトのプロパティ)
+customElement('solid-counter', { initial: '0' }, SolidCounter);
+
+
+2. Lustre (Gleam) 側でカスタム要素を呼び出す
+
+Lustreの lustre/element モジュールにある element.node 関数を使用すると、
+任意の文字列のタグ名でHTML要素（カスタム要素）を生成できます。
+
+gleam// src/app.gleam
+import lustre/attribute
+import lustre/element.{Element}
+import lustre/element/html
+
+pub fn view(model: Model) -> Element(Msg) {
+  html.div([], [
+    html.h1([], [element.text("Lustre アプリケーション")]),
+    
+    // SolidJSで作ったカスタム要素を埋め込む
+    element.node(
+      "solid-counter", // SolidJS側で定義したタグ名
+      [attribute.attribute("initial", "10")], // 属性 (Props) の伝播
+      []
+    )
+  ])
+}
+
+3. エントリーポイントでSolidJSのスクリプトを読み込む
+
+LustreのJavaScriptバンドル（または index.html などのエントリーポイント）で、
+手順1で作成したSolidJSのWeb Componentが登録されるようにファイルをインポート（実行）しておきます。
+
+javascript// src/main.js (またはエントリーポイントのスクリプト)
+import './components/MySolidCounter.tsx'; // カスタム要素をブラウザに登録
+import { main } from './app.gleam';       // Lustreのメイン関数
+
+main();
+
+
+双方向の通信（データのやり取り）を行う場合もしLustreとSolidJSの間で状態を同期させたい場合は、
+
+「属性（Attributes）」と「カスタムイベント（Custom Events）」を媒介します。
+
+Lustre ➔ SolidJS: 
+  Lustreの attribute.attribute("prop-name", value) を使ってSolidJS側に値を渡します。SolidJS側は props の変更を自動的に追跡（リアクティブに検知）します。
+
+SolidJS ➔ Lustre: 
+  SolidJS側でボタン等が押された際、標準の dispatchEvent を使ってカスタムイベントを発火させます。Lustre側は event.on などでそのイベントをキャッチして、自身の Msg に変換して状態（Model）を更新します。
+
+
+----------------------------------------------------------------------------------------
+この設計の強み
+
+Gleam と JavaScript は本来メモリ空間や型システムが完全に分離していますが、
+「データのシリアライズ（JSON化）」 を境界線に挟むことで、以下のメリットが生まれます。
+
+1. 型安全性の担保: 
+ Gleam 側は強固な型システムで型安全に JSON を作り、
+ SolidJS（TypeScript）側は型定義（interface User）に沿って安全に描画できます。
+
+2. リアクティブの最大化: 
+ Lustre 側でリストの中身が1文字でも、あるいは1件でも変わると、
+ 属性変更通知（attributeChangedCallback）を感知して SolidJS の For コンポーネントが
+ 変更された差分 DOM だけを超高速に書き換えます。
+
+ これで複雑なデータも自由自在に同期できるようになります。
+
+---------------------------------------------------------------------------------------
+solidjs_app
+   solod side inclument  
+   lustre side inclument  
+
+   双方向の通信（データのやり取り）を行う場合もしLustreとSolidJSの間で状態を同期させたい場合は、「属性（Attributes）」と「カスタムイベント（Custom Events）」を媒介します。
+
+   Lustre ➔ SolidJS: 
+     Lustreの attribute.attribute("prop-name", value) を使ってSolidJS側に値を渡します。SolidJS側は props の変更を自動的に追跡（リアクティブに検知）します。
+
+   SolidJS ➔ Lustre: 
+     SolidJS側でボタン等が押された際、標準の dispatchEvent を使ってカスタムイベントを発火させます。Lustre側は event.on などでそのイベントをキャッチして、自身の Msg に変換して状態（Model）を更新します。
+solidjs_app2
+    list
+
+solidjs_app3
+    list  element remove
+
+    データ循環の流れ
+    SolidJS 側のテーブルにある「削除」ボタンをクリック。
+    JavaScript 側から { detail: { id: 2 } } のようなカスタムイベントが発火。
+    Lustre 側の event.on("delete-user", ...) がキャッチし、型安全に整数 2 にデコード。
+    Lustre の update 関数に DeleteUser(2) が届き、Gleam 内部の immutable なリストから Bob が削除される。
+    更新された新しいリストが再シリアライズされ、属性 users-data を経由して 
+    SolidJS に瞬時に再配信。SolidJS 側でテーブルから Bob の行が消滅。
+
+solidjs_app4
+    list  element add
+      Gleam（Lustre）の強固な型システムによる状態管理（追加・自動採番・削除のロジック）と、
+      SolidJSの超高速なフォーム・リスト描画UIが、Web Componentsを介してシームレスに結合された
+      「ユーザー管理システム」がこれで完成しました。
+
+    Tailwind CSS の統合: 
+      スタイルシートを連携させ、Lustre側とSolidJS側のUIを一気にモダンで美しいデザインにスタイリングする方法
+
+solidjs_app5
+    dashboard
+      Lustre（Gleam）のSPAルーティングをベースにしつつ、メインのコンテンツエリアに SolidJS で構築した「リッチなダッシュボード統計グラフ＆管理コンポーネント」 を埋め込んだ、実用的なSPAダッシュボードの完全なサンプルコードです。このサンプルでは、Lustre 側でサイドメニューによる画面（ページ）切り替え（SPA） を制御し、ダッシュボード画面が選ばれたときに SolidJS のコンポーネントを表示します。
+
+
+solidjs_app6
+    dashboard
+    solid-apexcharts
+
+
+

@@ -1,0 +1,16 @@
+{
+  "name": "lustre-solidjs-app",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host --port 3000",
+    "build": "gleam build && vite build"
+  },
+  "dependencies": {
+    "solid-js": "^1.9.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0",
+    "vite-plugin-solid": "^2.8.0"
+  }
+}

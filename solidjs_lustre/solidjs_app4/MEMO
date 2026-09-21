@@ -1,0 +1,157 @@
+
+gleam build
+yarn
+npm run dev
+
+http://127.0.0.1:3000
+
+
+--------------------------------
+
+1. 依存関係のインストール
+
+プロジェクトのルートディレクトリで、Tailwind と PostCSS に必要な最小限のパッケージをインストールします。最新の仕様に合わせて @tailwindcss/postcss を使用します。bashnpm install -D tailwindcss @tailwindcss/postcss postcss
+コードは注意してご使用ください。
+
+2. postcss.config.js の作成
+
+Vite に Tailwind を処理させるために、プロジェクトのルート直下に PostCSS の設定ファイルを作成します。postcss.config.jsjavascriptexport default {
+  plugins: {
+    '@tailwindcss/postcss': {},
+  },
+}
+コードは注意してご使用ください。
+
+3. メイン CSS ファイルの作成と「ソース指定」
+
+src/index.css を新しく作成し、Tailwind のディレクティブを記述します。
+
+ここで重要なのは、Gleam のビルド成果物が含まれるディレクトリも Tailwind のスキャン対象に明示することです。
+
+src/index.css
+
+@import "tailwindcss";
+/* ⭕ Gleamのコンパイル済みJavaScriptに含まれるクラス名（attribute.class）をスキャン対象にする */
+@source "../build/dev/javascript";
+/* ⭕ SolidJS側のTypeScriptファイルもスキャン対象にする */
+@source "../ts/**/*.tsx";
+
+
+4. 各ソースコードの装飾（クラスの適用）
+
+① エントリーポイント（src/main.js）で CSS をインポートVite が Tailwind をコンパイルできるように、エントリーポイントの最上部で CSS ファイルを読み込みます。javascript// src/main.js
+import './index.css'; // ⭕ Tailwind CSSのインポート
+import '../ts/my-counter.tsx';
+import { main } from '../build/dev/javascript/site/app.mjs';
+
+main();
+
+
+② SolidJS 側（ts/my-counter.tsx）を Tailwind で装飾これまでのインライン style をすべて Tailwind の class 属性に置き換えます。typescript// ts/my-counter.tsx の一部分（return のデザインのみ抜粋）
+return (
+  <div class="border-2 border-dashed border-blue-400 p-6 rounded-xl bg-blue-50/50 mt-6 shadow-sm">
+    <h3 class="text-lg font-bold text-blue-600 mb-4">SolidJS ユーザー管理</h3>
+    
+    {/* 追加フォーム */}
+    <form onSubmit={handleSubmit} class="mb-6 flex flex-wrap gap-3">
+      <input 
+        type="text" 
+        placeholder="名前を入力" 
+        value={name()} 
+        onInput={(e) => setName(e.currentTarget.value)}
+        class="flex-1 min-w-[200px] px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+      />
+      <select 
+        value={role()} 
+        onChange={(e) => setRole(e.currentTarget.value)}
+        class="px-3 py-2 border border-gray-300 rounded-lg shadow-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+      >
+        <option value="Admin">Admin</option>
+        <option value="Developer">Developer</option>
+        <option value="Designer">Designer</option>
+      </select>
+      <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow transition-colors cursor-pointer">
+        ユーザー追加
+      </button>
+    </form>
+
+    {/* テーブル */}
+    <div class="overflow-hidden border border-gray-200 rounded-lg shadow-inner bg-white">
+      <table class="w-full border-collapse text-left text-sm text-gray-600">
+        <thead class="bg-gray-50 border-b border-gray-200 text-gray-700 font-semibold">
+          <tr>
+            <th class="px-4 py-3">ID</th>
+            <th class="px-4 py-3">名前</th>
+            <th class="px-4 py-3">役割</th>
+            <th class="px-4 py-3">操作</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          <For each={props.users()}>
+            {(user) => (
+              <tr class="hover:bg-gray-50/70 transition-colors">
+                <td class="px-4 py-3 font-mono text-gray-400">{user.id}</td>
+                <td class="px-4 py-3 font-medium text-gray-900">{user.name}</td>
+                <td class="px-4 py-3">
+                  <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    user.role === 'Admin' ? 'bg-red-50 text-red-700 border border-red-100' :
+                    user.role === 'Developer' ? 'bg-green-50 text-green-700 border border-green-100' :
+                    'bg-purple-50 text-purple-700 border border-purple-100'
+                  }`}>
+                    {user.role}
+                  </span>
+                </td>
+                <td class="px-4 py-3">
+                  <button 
+                    class="text-sm text-red-600 hover:text-red-800 font-medium cursor-pointer transition-colors"
+                    onClick={() => props.onDelete(user.id)}
+                  >
+                    削除
+                  </button>
+                </td>
+              </tr>
+            )}
+          </For>
+        </tbody>
+      </table>
+    </div>
+  </div>
+);
+
+
+③ Lustre 側（src/app.gleam）を Tailwind で装飾Lustre 側では attribute.class("...") を利用してデザインを構築します。gleam// src/app.gleam の view 関数の一部
+pub fn view(model: Model) -> Element(Msg) {
+  html.div(
+    // ⭕ Tailwindのユーティリティクラスをコンテナとして適用
+    [attribute.class("max-w-4xl mx-auto p-8 bg-gray-50 min-h-screen")], 
+    [
+      html.h1(
+        [attribute.class("text-3xl font-extrabold text-gray-900 tracking-tight mb-6")], 
+        [element.text("Lustre & SolidJS ユーザー管理")]
+      ),
+      
+      element.element(
+        "solid-user-list",
+        [
+          attribute.attribute("users-data", encode_users(model.users)),
+          event.on(
+            "delete-user",
+            decode.at(["detail", "id"], decode.int)
+              |> decode.map(DeleteUser),
+          ),
+          event.on("add-user", add_user_decoder()),
+        ],
+        []
+      ),
+    ]
+  )
+}
+
+5. コンパイルと起動
+Gleam ファイルを再生成し、Vite の事前ビルドキャッシュを完全にリフレッシュして起動します。
+
+gleam build
+npm run dev -- --force
+
+
+これによって、npx の実行エラーを回避しつつ、Vite プラグインベースの高速な Tailwind CSS 環境が共存アプリケーションに統合されます。ブラウザを開いてダッシュボード風のモダンな UI になっているか確認してみてください！

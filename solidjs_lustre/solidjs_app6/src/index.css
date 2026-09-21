@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+/* ⭕ Gleamのコンパイル済みJavaScriptに含まれるクラス名（attribute.class）をスキャン対象にする */
+@source "../build/dev/javascript";
+/* ⭕ SolidJS側のTypeScriptファイルもスキャン対象にする */
+@source "../ts/**/*.tsx";
+

@@ -1,0 +1,15 @@
+*.beam
+*.ez
+build
+node_modules/
+erl_crash.dump
+info.md
+
+.lustre/
+.env
+client/dist
+websocket-stats-design.md
+stats-cache
+.docker
+postgres-data/
+article.md
